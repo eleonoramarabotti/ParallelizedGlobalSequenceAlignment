@@ -6,12 +6,12 @@ from ctypes import c_char, c_int
 import numpy as np
 from multiprocessing import Process, Array
 
-LEFT_DIR = b'L'
-UP_DIR   = b'U'
-DIAG_DIR = b'D'
+LEFT_DIR = '←'.encode('utf-8')
+UP_DIR   = '↑'.encode('utf-8')
+DIAG_DIR = '↖'.encode('utf-8')
 
 def createMatrix(args, *, isDirectionMatrix: bool):
-    matrix = np.zeros(args.shape, dtype = "S3" if isDirectionMatrix else np.int32) 
+    matrix = np.zeros(args.shape, dtype = "S9" if isDirectionMatrix else np.int32) 
     # seq1 = x = columns, seq2 = y = rows
     
     for x in range(args.shape[1]):
@@ -39,7 +39,7 @@ def fillMatrix(antidiag, args, scoreMatrix: np.ndarray, directionMatrix: np.ndar
        
         list(map(lambda p: p.join(), processes))
 
-    return np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape), np.frombuffer(directionMatrix.get_obj(), dtype='S3').reshape(args.shape)
+    return np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape), np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
 
 def calculateSingleCellScore(cell: tuple[int,int], args, scoreMatrix, directionMatrix) -> None:
     x, y = cell
@@ -47,7 +47,7 @@ def calculateSingleCellScore(cell: tuple[int,int], args, scoreMatrix, directionM
         return
 
     scoreMatrix = np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape)
-    directionMatrix = np.frombuffer(directionMatrix.get_obj(), dtype='S3').reshape(args.shape)
+    directionMatrix = np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
 
     upScore = scoreMatrix[y-1][x] + args.gapPenalty
     leftScore = scoreMatrix[y][x-1] + args.gapPenalty
@@ -63,8 +63,10 @@ def calculateSingleCellScore(cell: tuple[int,int], args, scoreMatrix, directionM
 
     if scoreMatrix[y][x] == upScore:
         cellDirections += UP_DIR
+ 
     if scoreMatrix[y][x] == leftScore:
         cellDirections += LEFT_DIR
+     
     if scoreMatrix[y][x] == diagScore:
         cellDirections += DIAG_DIR
 
@@ -144,6 +146,14 @@ def traceback(directionMatrix, args):
     return possibleAlignments
 
 
+def printDirectionMatrix(directionMatrix: np.ndarray) -> None:
+    for y in range(directionMatrix.shape[0]):
+        rowBuff = ""
+        for x in range(directionMatrix.shape[1]):
+            rowBuff += directionMatrix[y,x].decode() + " "
+        print(rowBuff)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Scientific Programming Project", description = "Takes two sequences as input for the allignement")
     parser.add_argument("--seq1", type=str, help="Write here your first sequence")
@@ -161,7 +171,7 @@ if __name__ == "__main__":
     scoreMatrix, directionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
     print(antidiag)
     print(scoreMatrix)
-    print(directionMatrix)
+    printDirectionMatrix(directionMatrix)
     traceback = traceback(directionMatrix, args)
     print(traceback)
 
