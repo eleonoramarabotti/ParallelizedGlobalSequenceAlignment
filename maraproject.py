@@ -10,7 +10,13 @@ LEFT_DIR = '←'.encode('utf-8')
 UP_DIR   = '↑'.encode('utf-8')
 DIAG_DIR = '↖'.encode('utf-8')
 
-def createMatrix(args, *, isDirectionMatrix: bool):
+type Params = object
+"""
+Object containing the analysis parameters, such as match score, ...
+"""
+args: Params
+
+def createMatrix(args: Params, *, isDirectionMatrix: bool):
     matrix = np.zeros(args.shape, dtype = "S9" if isDirectionMatrix else np.int32) 
     # seq1 = x = columns, seq2 = y = rows
     
@@ -25,11 +31,11 @@ def createMatrix(args, *, isDirectionMatrix: bool):
     return matrix   
  
 
-def fillMatrix(antidiag, args, scoreMatrix: np.ndarray, directionMatrix: np.ndarray):
+def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray):
     directionMatrix = Array(c_char, directionMatrix.tobytes())
     scoreMatrix = Array(c_int, scoreMatrix.flatten())
 
-    for diag in antidiag:
+    for diag in antiDiagonals:
         processes = []
         for cell in diag:
             p = Process(target=calculateSingleCellScore, args=(cell, args, scoreMatrix, directionMatrix))
@@ -41,7 +47,7 @@ def fillMatrix(antidiag, args, scoreMatrix: np.ndarray, directionMatrix: np.ndar
 
     return np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape), np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
 
-def calculateSingleCellScore(cell: tuple[int,int], args, scoreMatrix, directionMatrix) -> None:
+def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> None:
     x, y = cell
     if y == 0 or x == 0:
         return
@@ -74,35 +80,35 @@ def calculateSingleCellScore(cell: tuple[int,int], args, scoreMatrix, directionM
 
 
 
-def calculateAntidiagonals(args):
+def calculateAntidiagonals(args: Params):
     rows, columns = args.shape 
-    antiDiagList = [] # # each singleDiagList is inserted in this list with the last 'append'
+    antiDiagonals = [] # # each singleDiagList is inserted in this list with the last 'append'
     for index in range(columns):
-        singleDiagList = [] # each diagonal is inserted in this list with the first 'append'
+        startAtTopDiagonals = [] # each diagonal is inserted in this list with the first 'append'
         x = index
         y = 0
         for _ in range(min(rows, index + 1)): 
-            singleDiagList.append((x, y)) # here because i want to append the first cell too
+            startAtTopDiagonals.append((x, y)) # here because i want to append the first cell too
             x -= 1
             y += 1
         
-        antiDiagList.append(singleDiagList)
+        antiDiagonals.append(startAtTopDiagonals)
 
     for j in range(1, rows):
-        singleDiagList2 = []
+        startAtRightDiagonals = []
         x = columns - 1
         y = j
         for _ in range(min(columns, rows - j)):
-            singleDiagList2.append((x, y))
+            startAtRightDiagonals.append((x, y))
             x -= 1
             y += 1
 
-        antiDiagList.append(singleDiagList2)
+        antiDiagonals.append(startAtRightDiagonals)
     
-    return antiDiagList
+    return antiDiagonals
 
 
-def traceback(directionMatrix, args):
+def traceback(directionMatrix: np.ndarray, args: Params) -> list:
     x = args.shape[1] - 1
     y = args.shape[0] - 1
 
@@ -145,10 +151,10 @@ def traceback(directionMatrix, args):
 
     return possibleAlignments
 
-
+# TODO: migliorare la funzione sotto per centrare le frecce
 def printDirectionMatrix(directionMatrix: np.ndarray) -> None:
     for y in range(directionMatrix.shape[0]):
-        rowBuff = ""
+        rowBuff = " "
         for x in range(directionMatrix.shape[1]):
             rowBuff += directionMatrix[y,x].decode() + " "
         print(rowBuff)
@@ -169,11 +175,11 @@ if __name__ == "__main__":
     directionMatrix = createMatrix(args, isDirectionMatrix = True)
     antidiag = calculateAntidiagonals(args)
     scoreMatrix, directionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
-    print(antidiag)
-    print(scoreMatrix)
+    # print(antidiag)
+    # print(scoreMatrix)
     printDirectionMatrix(directionMatrix)
     traceback = traceback(directionMatrix, args)
-    print(traceback)
+    # print(traceback)
 
 
     print("First sequence:", args.seq1)
