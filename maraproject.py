@@ -14,7 +14,22 @@ type Params = object
 """
 Object containing the analysis parameters, such as match score, ...
 """
-args: Params
+
+class NucleotideException(Exception):
+    def __init__(self, character: str, sequence: str, label: str):
+        message = (
+            f"Insertion error in the {label} ('{sequence}'): invalid nucleotide '{character}'. "
+            "Sequences must contain only A, C, T, or G."
+        )
+        super().__init__(message)
+
+
+def checkSequences(sequence: str, label: str) -> None:
+    for nucleotide in sequence:
+        if nucleotide.upper() not in "ACTG":
+            raise NucleotideException(nucleotide, sequence, label)
+            
+
 
 def createMatrix(args: Params, *, isDirectionMatrix: bool):
     matrix = np.zeros(args.shape, dtype = "S9" if isDirectionMatrix else np.int32) 
@@ -170,7 +185,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     args.shape = (len(args.seq2) + 1, len(args.seq1) + 1)
+    args: Params
 
+    checkSequences(args.seq1, label = "first sequence")
+    checkSequences(args.seq2, label = "second sequence")
     scoreMatrix = createMatrix(args, isDirectionMatrix = False)
     directionMatrix = createMatrix(args, isDirectionMatrix = True)
     antidiag = calculateAntidiagonals(args)
