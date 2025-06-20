@@ -12,11 +12,32 @@ DIAG_DIR = '↖'.encode('utf-8')
 
 type Params = object
 """
-Object containing the analysis parameters, such as match score, ...
+Object containing all the parameters needed for the sequence alignment process.
+
+Attributes:
+    match (int): score awarded for a matching pair of nucleotides.
+    misMatch (int): penalty for a mismatching pair of nucleotides.
+    gapPenalty (int): penalty for introducing a gap in the alignment.
+    seq1 (str): the first input sequence to be aligned.
+    seq2 (str): the second input sequence to be aligned.
+    shape (tuple[int, int]): the dimensions of the matrices.
 """
 
 class NucleotideException(Exception):
+    """Custom exception raised when an invalid nucleotide is found in a sequence.
+
+    This exception is used to signal that a sequence contains characters other than
+    the allowed nucleotides: A, C, T, or G.
+
+    """
     def __init__(self, character: str, sequence: str, label: str):
+        """Initialize the NucleotideException with a detailed error message.
+
+        Args:
+            character (str): the invalid nucleotide character found in the sequence.
+            sequence (str): the sequence containing the invalid character.
+            label (str): a label to identify the sequence.
+        """
         message = (
             f"Insertion error in the {label} ('{sequence}'): invalid nucleotide '{character}'. "
             "Sequences must contain only A, C, T, or G."
@@ -24,15 +45,15 @@ class NucleotideException(Exception):
         super().__init__(message)
 
 
-def checkSequences(sequence: str, label: str) -> None:
-    """Check if the inserted sequences contain acceptable nucleotides.
+def checkSequence(sequence: str, label: str) -> None:
+    """Check if the inserted sequence contains acceptable nucleotides.
 
     Args:
-        sequence (str): the sequence you want to check
-        label (str): description for the sequence
+        sequence (str): the sequence you want to check.
+        label (str): a label to identify the sequence.
 
     Raises:
-        NucleotideException: insertion error if a sequence contains invalid characters
+        NucleotideException: insertion error if a sequence contains invalid characters.
     """
     for nucleotide in sequence:
         if nucleotide.upper() not in "ACTG":
@@ -41,9 +62,6 @@ def checkSequences(sequence: str, label: str) -> None:
 
 def createMatrix(args: Params, *, isDirectionMatrix: bool) -> np.ndarray:
     """Create and initialize a matrix for sequence alignment.
-    The matrix size is taken from args.shape. If it's a scoring matrix, the first row
-    and column are filled with gap penalties, if it's a direction matrix, they are filled
-    with direction symbols.
 
     Args:
         args (Params): an object containing matrix dimensions and alignment parameters.
@@ -70,9 +88,7 @@ def createMatrix(args: Params, *, isDirectionMatrix: bool) -> np.ndarray:
 def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> np.ndarray:
     """Fill the scoring and direction matrices using parallel processing.
 
-    The function updates the given matrices by computing alignment scores cell-by-cell, 
-    following the order of anti-diagonals (to respect dependencies).
-    Each cell is processed in parallel using multiprocessing.
+    The function updates the given matrices by computing alignment scores cell-by-cell.
 
     Args:
         antiDiagonals (list): a list of anti-diagonals, where each anti-diagonal is a list 
@@ -101,10 +117,6 @@ def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, direc
 
 def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> None:
     """Compute the score and direction for a single cell in the alignment matrix.
-
-    This function calculates the optimal alignment score for a specific cell 
-    (y, x) in the score matrix, based on match/mismatch and gap penalties.
-    It updates the corresponding direction(s) from which the best score came.
 
     Args:
         cell (tuple[int,int]): the (x, y) coordinates of the cell to compute.
@@ -145,11 +157,6 @@ def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np
 
 def calculateAntidiagonals(args: Params) -> list:
     """Compute the list of anti-diagonals for a matrix of a given shape.
-
-    Each anti-diagonal is a list of (x, y) coordinate pairs that lie on the same diagonal
-    running from top-right to bottom-left. This order is used to enable correct parallel
-    processing of matrix cells during sequence alignment, preserving data dependencies.
-
 
     Args:
         args (Params): an object containing matrix dimensions and alignment parameters.
@@ -261,8 +268,8 @@ if __name__ == "__main__":
     args.shape = (len(args.seq2) + 1, len(args.seq1) + 1)
     args: Params
 
-    checkSequences(args.seq1, label = "first sequence")
-    checkSequences(args.seq2, label = "second sequence")
+    checkSequence(args.seq1, label = "first sequence")
+    checkSequence(args.seq2, label = "second sequence")
     scoreMatrix = createMatrix(args, isDirectionMatrix = False)
     directionMatrix = createMatrix(args, isDirectionMatrix = True)
     antidiag = calculateAntidiagonals(args)
