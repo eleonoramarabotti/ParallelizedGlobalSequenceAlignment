@@ -25,13 +25,34 @@ class NucleotideException(Exception):
 
 
 def checkSequences(sequence: str, label: str) -> None:
+    """Check if the inserted sequences contain acceptable nucleotides.
+
+    Args:
+        sequence (str): the sequence you want to check
+        label (str): description for the sequence
+
+    Raises:
+        NucleotideException: insertion error if a sequence contains invalid characters
+    """
     for nucleotide in sequence:
         if nucleotide.upper() not in "ACTG":
             raise NucleotideException(nucleotide, sequence, label)
             
 
+def createMatrix(args: Params, *, isDirectionMatrix: bool) -> np.ndarray:
+    """Create and initialize a matrix for sequence alignment.
+    The matrix size is taken from args.shape. If it's a scoring matrix, the first row
+    and column are filled with gap penalties, if it's a direction matrix, they are filled
+    with direction symbols.
 
-def createMatrix(args: Params, *, isDirectionMatrix: bool):
+    Args:
+        args (Params): an object containing matrix dimensions and alignment parameters.
+        isDirectionMatrix (bool): if True, initializes a direction matrix, if False, 
+                                    initializes a score matrix.
+
+    Returns:
+        np.ndArray: the initialized score matrix or direction matrix
+    """
     matrix = np.zeros(args.shape, dtype = "S9" if isDirectionMatrix else np.int32) 
     # seq1 = x = columns, seq2 = y = rows
     
@@ -46,7 +67,23 @@ def createMatrix(args: Params, *, isDirectionMatrix: bool):
     return matrix   
  
 
-def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray):
+def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> np.ndarray:
+    """Fill the scoring and direction matrices using parallel processing.
+
+    The function updates the given matrices by computing alignment scores cell-by-cell, 
+    following the order of anti-diagonals (to respect dependencies).
+    Each cell is processed in parallel using multiprocessing.
+
+    Args:
+        antiDiagonals (list): a list of anti-diagonals, where each anti-diagonal is a list 
+                                of (row, column) positions to process.
+        args (Params): an object containing matrix dimensions and alignment parameters.
+        scoreMatrix (np.ndarray): the scoring matrix you want to fill.
+        directionMatrix (np.ndarray): the direction matrix you want to fill.
+
+    Returns:
+        np.ndarray: the updated scoreMatrix and directionMatrix.
+    """
     directionMatrix = Array(c_char, directionMatrix.tobytes())
     scoreMatrix = Array(c_int, scoreMatrix.flatten())
 
@@ -63,6 +100,18 @@ def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, direc
     return np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape), np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
 
 def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> None:
+    """Compute the score and direction for a single cell in the alignment matrix.
+
+    This function calculates the optimal alignment score for a specific cell 
+    (y, x) in the score matrix, based on match/mismatch and gap penalties.
+    It updates the corresponding direction(s) from which the best score came.
+
+    Args:
+        cell (tuple[int,int]): the (x, y) coordinates of the cell to compute.
+        args (Params): an object containing matrix dimensions and alignment parameters.
+        scoreMatrix (np.ndarray): the scoring matrix.
+        directionMatrix (np.ndarray): the direction matrix.
+    """
     x, y = cell
     if y == 0 or x == 0:
         return
@@ -94,8 +143,20 @@ def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np
     directionMatrix[y][x] = cellDirections
 
 
+def calculateAntidiagonals(args: Params) -> list:
+    """Compute the list of anti-diagonals for a matrix of a given shape.
 
-def calculateAntidiagonals(args: Params):
+    Each anti-diagonal is a list of (x, y) coordinate pairs that lie on the same diagonal
+    running from top-right to bottom-left. This order is used to enable correct parallel
+    processing of matrix cells during sequence alignment, preserving data dependencies.
+
+
+    Args:
+        args (Params): an object containing matrix dimensions and alignment parameters.
+
+    Returns:
+        list: a list of anti-diagonals, where each anti-diagonal is a list of (x, y) tuples.
+    """
     rows, columns = args.shape 
     antiDiagonals = [] # # each singleDiagList is inserted in this list with the last 'append'
     for index in range(columns):
@@ -124,6 +185,19 @@ def calculateAntidiagonals(args: Params):
 
 
 def traceback(directionMatrix: np.ndarray, args: Params) -> list:
+    """Reconstruct all optimal alignments by following the traceback paths.
+
+    Starting from the bottom-right cell of the direction matrix, this function explores
+    all possible paths back to the top-left, building aligned sequences along the way.
+    It returns all optimal alignments according to the directions encoded in the matrix.
+
+    Args:
+        directionMatrix (np.ndarray): the direction matrix
+        args (Params): an object containing matrix dimensions and alignment parameters.
+
+    Returns:
+        list: a list of tuples, each containing a pair of aligned sequences.
+    """
     x = args.shape[1] - 1
     y = args.shape[0] - 1
 
