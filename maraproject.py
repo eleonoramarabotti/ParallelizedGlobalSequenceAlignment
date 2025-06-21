@@ -22,6 +22,18 @@ Attributes:
     seq2 (str): the second input sequence to be aligned.
     shape (tuple[int, int]): the dimensions of the matrices.
 """
+class EmptySequenceException(Exception):
+    """Custom exception raised when the inserted sequence is empty."""
+    def __init__(self, sequence: str, label: str):
+        """Initialize the EmptySequenceException with a detailed error message.
+
+        Args:
+            sequence (str): the empty sequence.
+            label (str): a label to identify the sequence.
+        """
+        message = f"Insertion error in the {label} ('{sequence}'): the sequence cannot be empty"
+        super().__init__(message)
+
 
 class NucleotideException(Exception):
     """Custom exception raised when an invalid nucleotide is found in a sequence.
@@ -38,10 +50,7 @@ class NucleotideException(Exception):
             sequence (str): the sequence containing the invalid character.
             label (str): a label to identify the sequence.
         """
-        message = (
-            f"Insertion error in the {label} ('{sequence}'): invalid nucleotide '{character}'. "
-            "Sequences must contain only A, C, T, or G."
-        )
+        message = f"Insertion error in the {label} ('{sequence}'): invalid nucleotide '{character}'. Sequences must contain only A, C, T, or G."
         super().__init__(message)
 
 
@@ -55,6 +64,8 @@ def checkSequence(sequence: str, label: str) -> None:
     Raises:
         NucleotideException: insertion error if a sequence contains invalid characters.
     """
+    if not sequence:
+        raise EmptySequenceException(sequence, label)
     for nucleotide in sequence:
         if nucleotide.upper() not in "ACTG":
             raise NucleotideException(nucleotide, sequence, label)
@@ -74,85 +85,16 @@ def createMatrix(args: Params, *, isDirectionMatrix: bool) -> np.ndarray:
     matrix = np.zeros(args.shape, dtype = "S9" if isDirectionMatrix else np.int32) 
     # seq1 = x = columns, seq2 = y = rows
     
-    for x in range(args.shape[1]):
+    for x in range(1, args.shape[1]):
         matrix[0][x] = LEFT_DIR if isDirectionMatrix else x * args.gapPenalty
         # first row of the matrix, for each column add the gap penalty from the cell before
 
-    for y in range(args.shape[0]):
+    for y in range(1, args.shape[0]):
         matrix[y][0] = UP_DIR if isDirectionMatrix else y * args.gapPenalty
         # for each row, in position 0 (first column), add the gap penalty from the cell above
 
     return matrix   
  
-
-def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> np.ndarray:
-    """Fill the scoring and direction matrices using parallel processing.
-
-    The function updates the given matrices by computing alignment scores cell-by-cell.
-
-    Args:
-        antiDiagonals (list): a list of anti-diagonals, where each anti-diagonal is a list 
-                                of (row, column) positions to process.
-        args (Params): an object containing matrix dimensions and alignment parameters.
-        scoreMatrix (np.ndarray): the scoring matrix you want to fill.
-        directionMatrix (np.ndarray): the direction matrix you want to fill.
-
-    Returns:
-        np.ndarray: the updated scoreMatrix and directionMatrix.
-    """
-    directionMatrix = Array(c_char, directionMatrix.tobytes())
-    scoreMatrix = Array(c_int, scoreMatrix.flatten())
-
-    for diag in antiDiagonals:
-        processes = []
-        for cell in diag:
-            p = Process(target=calculateSingleCellScore, args=(cell, args, scoreMatrix, directionMatrix))
-            p.daemon = True
-            p.start()
-            processes.append(p)
-       
-        list(map(lambda p: p.join(), processes))
-
-    return np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape), np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
-
-def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> None:
-    """Compute the score and direction for a single cell in the alignment matrix.
-
-    Args:
-        cell (tuple[int,int]): the (x, y) coordinates of the cell to compute.
-        args (Params): an object containing matrix dimensions and alignment parameters.
-        scoreMatrix (np.ndarray): the scoring matrix.
-        directionMatrix (np.ndarray): the direction matrix.
-    """
-    x, y = cell
-    if y == 0 or x == 0:
-        return
-
-    scoreMatrix = np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape)
-    directionMatrix = np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
-
-    upScore = scoreMatrix[y-1][x] + args.gapPenalty
-    leftScore = scoreMatrix[y][x-1] + args.gapPenalty
-    
-    if args.seq1[x-1] == args.seq2[y-1]:
-        diagScore = scoreMatrix[y-1][x-1] + args.match
-    else:
-        diagScore = scoreMatrix[y-1][x-1] + args.misMatch
-    
-    scoreMatrix[y][x] = max(upScore, leftScore, diagScore)
-
-    cellDirections = b""
-
-    if scoreMatrix[y][x] == upScore:
-        cellDirections += UP_DIR
- 
-    if scoreMatrix[y][x] == leftScore:
-        cellDirections += LEFT_DIR
-     
-    if scoreMatrix[y][x] == diagScore:
-        cellDirections += DIAG_DIR
-
-    directionMatrix[y][x] = cellDirections
 
 
 def calculateAntidiagonals(args: Params) -> list:
@@ -189,6 +131,77 @@ def calculateAntidiagonals(args: Params) -> list:
         antiDiagonals.append(startAtRightDiagonals)
     
     return antiDiagonals
+
+def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> None:
+    """Compute the score and direction for a single cell in the alignment matrix.
+
+    Args:
+        cell (tuple[int,int]): the (x, y) coordinates of the cell to compute.
+        args (Params): an object containing matrix dimensions and alignment parameters.
+        scoreMatrix (np.ndarray): the scoring matrix.
+        directionMatrix (np.ndarray): the direction matrix.
+    """
+    x, y = cell
+    if y == 0 or x == 0:
+        return
+
+    scoreMatrix = np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape)
+    directionMatrix = np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
+
+    upScore = scoreMatrix[y-1][x] + args.gapPenalty
+    leftScore = scoreMatrix[y][x-1] + args.gapPenalty
+    
+    if args.seq1[x-1] == args.seq2[y-1]:
+        diagScore = scoreMatrix[y-1][x-1] + args.match
+    else:
+        diagScore = scoreMatrix[y-1][x-1] + args.misMatch
+    
+    scoreMatrix[y][x] = max(upScore, leftScore, diagScore)
+
+    cellDirections = b""
+
+    if scoreMatrix[y][x] == diagScore:
+        cellDirections += DIAG_DIR
+
+    if scoreMatrix[y][x] == upScore:
+        cellDirections += UP_DIR
+ 
+    if scoreMatrix[y][x] == leftScore:
+        cellDirections += LEFT_DIR
+
+    directionMatrix[y][x] = cellDirections
+
+
+
+def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> np.ndarray:
+    """Fill the scoring and direction matrices using parallel processing.
+
+    The function updates the given matrices by computing alignment scores cell-by-cell.
+
+    Args:
+        antiDiagonals (list): a list of anti-diagonals, where each anti-diagonal is a list 
+                                of (row, column) positions to process.
+        args (Params): an object containing matrix dimensions and alignment parameters.
+        scoreMatrix (np.ndarray): the scoring matrix you want to fill.
+        directionMatrix (np.ndarray): the direction matrix you want to fill.
+
+    Returns:
+        np.ndarray: the updated scoreMatrix and directionMatrix.
+    """
+    directionMatrix = Array(c_char, directionMatrix.tobytes())
+    scoreMatrix = Array(c_int, scoreMatrix.flatten())
+
+    for diag in antiDiagonals:
+        processes = []
+        for cell in diag:
+            p = Process(target=calculateSingleCellScore, args=(cell, args, scoreMatrix, directionMatrix))
+            p.daemon = True
+            p.start()
+            processes.append(p)
+       
+        list(map(lambda p: p.join(), processes))
+
+    return np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape), np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
 
 
 def traceback(directionMatrix: np.ndarray, args: Params) -> list:
@@ -248,12 +261,21 @@ def traceback(directionMatrix: np.ndarray, args: Params) -> list:
     return possibleAlignments
 
 # TODO: migliorare la funzione sotto per centrare le frecce
-def printDirectionMatrix(directionMatrix: np.ndarray) -> None:
-    for y in range(directionMatrix.shape[0]):
-        rowBuff = " "
+def printDirectionsMatrix(directionMatrix: np.ndarray) -> None:
+    for y in range(0, 2 * directionMatrix.shape[0]):
+        isFirstLine = y % 2 == 0
+        rowBuff     = "|"
         for x in range(directionMatrix.shape[1]):
-            rowBuff += directionMatrix[y,x].decode() + " "
-        print(rowBuff)
+            if isFirstLine:
+                rowBuff += DIAG_DIR.decode() + ' ' if DIAG_DIR in directionMatrix[y // 2, x] else '  '
+                rowBuff += UP_DIR.decode()   + ' ' if UP_DIR   in directionMatrix[y // 2, x] else '  '
+            else:
+                rowBuff += LEFT_DIR.decode() + '   ' if LEFT_DIR in directionMatrix[y // 2, x] else '    '
+        
+            rowBuff += '|'
+
+        print((('+' + '-'*4)*directionMatrix.shape[1] + '+' + '\n')*isFirstLine + rowBuff)
+    print(('+' + '-'*4)*directionMatrix.shape[1] + '+')
 
 
 if __name__ == "__main__":
@@ -268,6 +290,9 @@ if __name__ == "__main__":
     args.shape = (len(args.seq2) + 1, len(args.seq1) + 1)
     args: Params
 
+    args.seq1 = args.seq1.strip()
+    args.seq2 = args.seq2.strip()
+
     checkSequence(args.seq1, label = "first sequence")
     checkSequence(args.seq2, label = "second sequence")
     scoreMatrix = createMatrix(args, isDirectionMatrix = False)
@@ -275,10 +300,10 @@ if __name__ == "__main__":
     antidiag = calculateAntidiagonals(args)
     scoreMatrix, directionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
     # print(antidiag)
-    # print(scoreMatrix)
-    printDirectionMatrix(directionMatrix)
+    print(scoreMatrix)
+    printDirectionsMatrix(directionMatrix)
     traceback = traceback(directionMatrix, args)
-    # print(traceback)
+    print(traceback)
 
 
     print("First sequence:", args.seq1)
