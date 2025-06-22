@@ -260,22 +260,31 @@ def traceback(directionMatrix: np.ndarray, args: Params) -> list:
 
     return possibleAlignments
 
-# TODO: migliorare la funzione sotto per centrare le frecce
+
+TOP    = "┌┬┐"
+MIDDLE = "├┼┤"
+BOTTOM = "└┴┘"
+WALL   = '─'
+
 def printDirectionsMatrix(directionMatrix: np.ndarray) -> None:
+    topSeparator = TOP[0] + (WALL * 3 + TOP[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + TOP[-1]
+    middleSeparator = MIDDLE[0] + (WALL * 3 + MIDDLE[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + MIDDLE[-1]
+    bottomSeparator = BOTTOM[0] + (WALL * 3 + BOTTOM[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + BOTTOM[-1]
+    print(topSeparator)
     for y in range(0, 2 * directionMatrix.shape[0]):
         isFirstLine = y % 2 == 0
-        rowBuff     = "|"
+        rowBuff     = "│"
         for x in range(directionMatrix.shape[1]):
             if isFirstLine:
-                rowBuff += DIAG_DIR.decode() + ' ' if DIAG_DIR in directionMatrix[y // 2, x] else '  '
-                rowBuff += UP_DIR.decode()   + ' ' if UP_DIR   in directionMatrix[y // 2, x] else '  '
+                rowBuff += DIAG_DIR.decode() + ' '  if DIAG_DIR in directionMatrix[y // 2, x] else '  '
+                rowBuff += UP_DIR.decode()          if UP_DIR   in directionMatrix[y // 2, x] else ' '
             else:
-                rowBuff += LEFT_DIR.decode() + '   ' if LEFT_DIR in directionMatrix[y // 2, x] else '    '
+                rowBuff += LEFT_DIR.decode() + '  ' if LEFT_DIR in directionMatrix[y // 2, x] else '   '
         
-            rowBuff += '|'
+            rowBuff += '│'
 
-        print((('+' + '-'*4)*directionMatrix.shape[1] + '+' + '\n')*isFirstLine + rowBuff)
-    print(('+' + '-'*4)*directionMatrix.shape[1] + '+')
+        print((middleSeparator + '\n') * isFirstLine * (y != 0) + rowBuff)
+    print(bottomSeparator)
 
 
 if __name__ == "__main__":
