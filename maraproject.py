@@ -260,8 +260,15 @@ def traceback(directionMatrix: np.ndarray, args: Params) -> list:
 
     return possibleAlignments
 
-# TODO: documentescion
+
 def printPossibleAlignments(possibleAlignments: list[tuple[str, str]]) -> None:
+    """Print all possible pairwise alignments between two sequences, highlighting matches, 
+    mismatches, and gaps.
+
+    Args:
+        possibleAlignments (list[tuple[str, str]]): a list of tuples, each containing two equal-length strings `seq1` and `seq2`
+                                                    (with '-' characters representing gaps).
+    """
     for seq1, seq2 in possibleAlignments:
         matchLine = ""
         for nuc1, nuc2 in zip(seq1, seq2):
