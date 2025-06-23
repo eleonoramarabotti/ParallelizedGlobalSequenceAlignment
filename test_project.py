@@ -1,12 +1,15 @@
+import ctypes
 import pytest
 from maraproject import *
 
 class MockArgs:
-    def __init__(self, shape, gapPenalty, match, misMatch):
+    def __init__(self, shape, seq1, seq2, gapPenalty, match, misMatch):
         self.shape = shape
+        self.seq1 = seq1
+        self.seq2 = seq2
         self.gapPenalty = gapPenalty
         self.match = match
-        self.mismatch = misMatch
+        self.misMatch = misMatch
 
 
 # checkSequence
@@ -40,7 +43,7 @@ def test_checkSequence_emptyLabel():
 
 # createMatrix
 def test_createMatrix_ScoreRe():
-    args = MockArgs(shape=(3, 4), gapPenalty=-1, match=1, misMatch=-1)
+    args = MockArgs(shape=(3, 4), seq1 = "ACT", seq2 = "ACTG", gapPenalty=-1, match=1, misMatch=-1)
     matrix = createMatrix(args, isDirectionMatrix=False)
 
     expected = np.array([
@@ -52,7 +55,7 @@ def test_createMatrix_ScoreRe():
     assert np.array_equal(matrix, expected)
 
 def test_createMatrix_ScoreSq():
-    args = MockArgs(shape=(3, 3), gapPenalty=-1, match=1, misMatch=-1)
+    args = MockArgs(shape=(3, 3), seq1 = "ACT", seq2 = "ATG", gapPenalty=-1, match=1, misMatch=-1)
     matrix = createMatrix(args, isDirectionMatrix=False)
 
     expected = np.array([
@@ -64,7 +67,7 @@ def test_createMatrix_ScoreSq():
     assert np.array_equal(matrix, expected)
 
 def test_createMatrix_DirectionsRe():
-    args = MockArgs(shape=(3, 4), gapPenalty=-1, match=1, misMatch=-1)
+    args = MockArgs(shape=(3, 4), seq1 = "ACT", seq2 = "ACTG", gapPenalty=-1, match=1, misMatch=-1)
     matrix = createMatrix(args, isDirectionMatrix=True)
 
     expected = np.array([
@@ -76,7 +79,7 @@ def test_createMatrix_DirectionsRe():
     assert np.array_equal(matrix, expected)
 
 def test_createMatrix_DirectionsSq():
-    args = MockArgs(shape=(3, 3), gapPenalty=-1, match=1, misMatch=-1)
+    args = MockArgs(shape=(3, 3), seq1 = "ACT", seq2 = "ATG", gapPenalty=-1, match=1, misMatch=-1)
     matrix = createMatrix(args, isDirectionMatrix=True)
 
     expected = np.array([
@@ -88,19 +91,19 @@ def test_createMatrix_DirectionsSq():
     assert np.array_equal(matrix, expected)
 
 def test_createMatrix_1x1Score():
-    args = MockArgs((1, 1), gapPenalty=-3, match=1, misMatch=-1)
+    args = MockArgs(shape=(1, 1), seq1 = "A", seq2 = "G", gapPenalty=-3, match=1, misMatch=-1)
     matrix = createMatrix(args, isDirectionMatrix=False)
     expected = np.array([[0]], dtype=np.int32)
     assert np.array_equal(matrix, expected)
 
 def test_createMatrix_1x1Direction():
-    args = MockArgs((1, 1), gapPenalty=-3, match=1, misMatch=-1)
+    args = MockArgs((1, 1), seq1 = "T", seq2 = "G", gapPenalty=-3, match=1, misMatch=-1)
     matrix = createMatrix(args, isDirectionMatrix=True)
     expected = np.array([['']], dtype="S9")
     assert np.array_equal(matrix, expected)
 
-def test_createMatrix_1x4Score():
-    args = MockArgs((1, 4), gapPenalty=-2, match=1, misMatch=-1)
+def test_createMatrix_4x1Score():
+    args = MockArgs((4, 1), seq1 = "ACTG", seq2 = "G", gapPenalty=-2, match=1, misMatch=-1)
     matrix = createMatrix(args, isDirectionMatrix=False)
     expected = np.array([[0], 
                         [-2],
@@ -109,22 +112,22 @@ def test_createMatrix_1x4Score():
     assert np.array_equal(matrix, expected)
 
 def test_createMatrix_1x4Score():
-    args = MockArgs((1, 4), gapPenalty=-2, match=1, misMatch=-1)
+    args = MockArgs((1, 4), seq1 = "T", seq2 = "ACTG", gapPenalty=-2, match=1, misMatch=-1)
     matrix = createMatrix(args, isDirectionMatrix=False)
     expected = np.array([[0, -2, -4, -6]], dtype=np.int32)
     assert np.array_equal(matrix, expected)
 
-def test_createMatrix_1x4Direction():
-    args = MockArgs((1, 4), gapPenalty=-2, match=1, misMatch=-1)
+def test_createMatrix_4x1Direction():
+    args = MockArgs((4, 1), seq1 = "ACTA", seq2 = "G", gapPenalty=-2, match=1, misMatch=-1)
     matrix = createMatrix(args, isDirectionMatrix=True)
     expected = np.array([[''], 
-                        [LEFT_DIR],
-                        [LEFT_DIR], 
-                        [LEFT_DIR]], dtype='S9')
+                        [UP_DIR],
+                        [UP_DIR], 
+                        [UP_DIR]], dtype='S9')
     assert np.array_equal(matrix, expected)
 
 def test_createMatrix_1x4Direction():
-    args = MockArgs((1, 4), gapPenalty=-2, match=1, misMatch=-1)
+    args = MockArgs((1, 4), seq1 = "A", seq2 = "ACTG", gapPenalty=-2, match=1, misMatch=-1)
     matrix = createMatrix(args, isDirectionMatrix=True)
     expected = np.array([['', LEFT_DIR, LEFT_DIR, LEFT_DIR]], dtype='S9')
     assert np.array_equal(matrix, expected)
@@ -132,7 +135,7 @@ def test_createMatrix_1x4Direction():
 
 # calculateAntiDiagonals
 def test_calculateAntidiagonals_2x2():
-    args = MockArgs(shape=(2, 2), gapPenalty=-1, match=1, misMatch=-1)
+    args = MockArgs(shape=(2, 2), seq1 = "AC", seq2 = "AG", gapPenalty=-1, match=1, misMatch=-1)
     result = calculateAntidiagonals(args)
     
     expected = [
@@ -143,7 +146,7 @@ def test_calculateAntidiagonals_2x2():
     assert result == expected
 
 def test_calculateAntidiagonals_2x5():
-    args = MockArgs(shape=(2, 5), gapPenalty=-1, match=1, misMatch=-1)
+    args = MockArgs(shape=(2, 5), seq1 = "AT", seq2 = "ACGTC", gapPenalty=-1, match=1, misMatch=-1)
     result = calculateAntidiagonals(args)
     
     expected = [
@@ -157,7 +160,7 @@ def test_calculateAntidiagonals_2x5():
     assert result == expected
 
 def test_calculateAntidiagonals_1x1():
-    args = MockArgs(shape=(2, 2), gapPenalty=-1, match=1, misMatch=-1)
+    args = MockArgs(shape=(2, 2), seq1 = "T", seq2 = "A", gapPenalty=-1, match=1, misMatch=-1)
     result = calculateAntidiagonals(args)
     
     expected = [
@@ -168,7 +171,7 @@ def test_calculateAntidiagonals_1x1():
     assert result == expected
 
 def test_calculateAntidiagonals_1x4():
-    args = MockArgs(shape=(1, 4), gapPenalty=-1, match=1, misMatch=-1)
+    args = MockArgs(shape=(1, 4), seq1 = "T", seq2 = "ACTG", gapPenalty=-1, match=1, misMatch=-1)
     result = calculateAntidiagonals(args)
     
     expected = [
@@ -180,7 +183,7 @@ def test_calculateAntidiagonals_1x4():
     assert result == expected
 
 def test_calculateAntidiagonals_4x1():
-    args = MockArgs(shape=(4, 1), gapPenalty=-1, match=1, misMatch=-1)
+    args = MockArgs(shape=(4, 1), seq1 = "ACT", seq2 = "T", gapPenalty=-1, match=1, misMatch=-1)
     result = calculateAntidiagonals(args)
     
     expected = [
@@ -192,11 +195,10 @@ def test_calculateAntidiagonals_4x1():
     assert result == expected
 
 
-# calculateSingleCellScore
-
-
+# calculateSingleCellScore: this function is covered by tests on fillMatrix as it would be difficult to unit test
 
 # fillMatrix
+
 
 
 # calculateAntiDiagonals
