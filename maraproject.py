@@ -22,6 +22,7 @@ Attributes:
     seq2 (str): the second input sequence to be aligned.
     shape (tuple[int, int]): the dimensions of the matrices.
 """
+
 class EmptySequenceException(Exception):
     """Custom exception raised when the inserted sequence is empty."""
     def __init__(self, sequence: str, label: str):
@@ -96,7 +97,6 @@ def createMatrix(args: Params, *, isDirectionMatrix: bool) -> np.ndarray:
     return matrix   
  
 
-
 def calculateAntidiagonals(args: Params) -> list:
     """Compute the list of anti-diagonals for a matrix of a given shape.
 
@@ -131,6 +131,7 @@ def calculateAntidiagonals(args: Params) -> list:
         antiDiagonals.append(startAtRightDiagonals)
     
     return antiDiagonals
+
 
 def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> None:
     """Compute the score and direction for a single cell in the alignment matrix.
@@ -170,7 +171,6 @@ def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np
         cellDirections += LEFT_DIR
 
     directionMatrix[y][x] = cellDirections
-
 
 
 def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> np.ndarray:
@@ -260,13 +260,33 @@ def traceback(directionMatrix: np.ndarray, args: Params) -> list:
 
     return possibleAlignments
 
+# TODO: documentescion
+def printPossibleAlignments(possibleAlignments: list[tuple[str, str]]) -> None:
+    for seq1, seq2 in possibleAlignments:
+        matchLine = ""
+        for nuc1, nuc2 in zip(seq1, seq2):
+            if nuc1 == nuc2: # it's never possible for both sequences to have a gap at the same position
+                matchLine += '|'
+            elif nuc1 == '-' or nuc2 == '-':
+                matchLine += ' '
+            else:
+                matchLine += '·'
+        
+        print(seq1, matchLine, seq2, sep='\n', end='\n'*2)
 
+
+# TODO: commento su dove ho preso queste cose (dalla repository del maic)
 TOP    = "┌┬┐"
 MIDDLE = "├┼┤"
 BOTTOM = "└┴┘"
 WALL   = '─'
 
 def printDirectionsMatrix(directionMatrix: np.ndarray) -> None:
+    """Formats and prints the direction matrix.
+
+    Args:
+        directionMatrix (np.ndarray): the filled direction matrix.
+    """
     topSeparator = TOP[0] + (WALL * 3 + TOP[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + TOP[-1]
     middleSeparator = MIDDLE[0] + (WALL * 3 + MIDDLE[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + MIDDLE[-1]
     bottomSeparator = BOTTOM[0] + (WALL * 3 + BOTTOM[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + BOTTOM[-1]
@@ -308,12 +328,10 @@ if __name__ == "__main__":
     directionMatrix = createMatrix(args, isDirectionMatrix = True)
     antidiag = calculateAntidiagonals(args)
     scoreMatrix, directionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
-    # print(antidiag)
-    print(scoreMatrix)
-    printDirectionsMatrix(directionMatrix)
-    traceback = traceback(directionMatrix, args)
-    print(traceback)
-
-
+    possibleAlignments = traceback(directionMatrix, args)
+    
     print("First sequence:", args.seq1)
     print("Second sequence:", args.seq2)
+    print(scoreMatrix)
+    printDirectionsMatrix(directionMatrix)
+    printPossibleAlignments(possibleAlignments)
