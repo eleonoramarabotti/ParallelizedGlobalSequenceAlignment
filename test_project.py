@@ -1,4 +1,3 @@
-import ctypes
 import pytest
 from maraproject import *
 
@@ -196,8 +195,45 @@ def test_calculateAntidiagonals_4x1():
 
 
 # calculateSingleCellScore: this function is covered by tests on fillMatrix as it would be difficult to unit test
-
 # fillMatrix
+def test_fillMatrix_2x2_mismatch():
+    args = MockArgs(shape=(2, 2), seq1 = "A", seq2 = "T")
+    antidiag = calculateAntidiagonals(args)
+    scoreMatrix = createMatrix(args, isDirectionMatrix=False)
+    directionMatrix = createMatrix(args, isDirectionMatrix=True)
+    
+    resultScore, resultDir = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+    
+    expectedScore = np.array([
+        [ 0, -1],
+        [-1, -1]], dtype=np.int32)
+       
+    expectedDir = np.array([
+        ['', LEFT_DIR],       
+        [UP_DIR, DIAG_DIR]], dtype="S9")
+
+    assert np.array_equal(resultScore, expectedScore)
+    assert np.array_equal(resultDir, expectedDir)
+
+def test_fillMatrix_2x2_match():
+    args = MockArgs(shape=(2, 2), seq1 = "A", seq2 = "A")
+    antidiag = calculateAntidiagonals(args)
+    scoreMatrix = createMatrix(args, isDirectionMatrix=False)
+    directionMatrix = createMatrix(args, isDirectionMatrix=True)
+    
+    resultScore, resultDir = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+    
+    expectedScore = np.array([
+        [ 0, -1],
+        [-1, 1]], dtype=np.int32)
+       
+    expectedDir = np.array([
+        ['', LEFT_DIR],       
+        [UP_DIR, DIAG_DIR]], dtype="S9")
+
+    assert np.array_equal(resultScore, expectedScore)
+    assert np.array_equal(resultDir, expectedDir)
+
 def test_fillMatrix_3x3():
     args = MockArgs(shape=(3, 3), seq1 = "AC", seq2 = "TC")
     antidiag = calculateAntidiagonals(args)
@@ -218,7 +254,6 @@ def test_fillMatrix_3x3():
 
     assert np.array_equal(resultScore, expectedScore)
     assert np.array_equal(resultDir, expectedDir)
-
 
 def test_fillMatrix_5x5():
     args = MockArgs(shape=(5, 5), seq1 = "ACTG", seq2 = "TCGG")
@@ -245,10 +280,97 @@ def test_fillMatrix_5x5():
     assert np.array_equal(resultScore, expectedScore)
     assert np.array_equal(resultDir, expectedDir)
 
-# calculateAntiDiagonals
+def test_fillMatrix_3x10():
+    args = MockArgs(shape=(3, 10), seq1 = "ACTGAAATG", seq2 = "TA")
+    antidiag = calculateAntidiagonals(args)
+    scoreMatrix = createMatrix(args, isDirectionMatrix=False)
+    directionMatrix = createMatrix(args, isDirectionMatrix=True)
+    
+    resultScore, resultDir = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+    
+    expectedScore = np.array([
+        [ 0, -1, -2, -3, -4, -5, -6, -7, -8, -9],
+        [-1, -1, -2, -1, -2, -3, -4, -5, -6, -7],
+        [-2,  0, -1, -2, -2, -1, -2, -3, -4, -5]], dtype=np.int32)
+       
+    expectedDir = np.array([
+        ['', LEFT_DIR, LEFT_DIR, LEFT_DIR, LEFT_DIR, LEFT_DIR, LEFT_DIR, LEFT_DIR, LEFT_DIR, LEFT_DIR],       
+        [UP_DIR, DIAG_DIR, DIAG_DIR + LEFT_DIR, DIAG_DIR, LEFT_DIR, LEFT_DIR, LEFT_DIR, LEFT_DIR, DIAG_DIR + LEFT_DIR, LEFT_DIR],
+        [UP_DIR, DIAG_DIR, LEFT_DIR, UP_DIR + LEFT_DIR, DIAG_DIR, DIAG_DIR, DIAG_DIR + LEFT_DIR, DIAG_DIR + LEFT_DIR, LEFT_DIR, LEFT_DIR]], dtype="S9")
+
+    assert np.array_equal(resultScore, expectedScore)
+    assert np.array_equal(resultDir, expectedDir)
 
 
 # traceback
+def test_traceback_2x2():
+    args = MockArgs(shape=(2, 2), seq1 = "A", seq2 = "A")
+    antidiag = calculateAntidiagonals(args)
+    scoreMatrix = createMatrix(args, isDirectionMatrix=False)
+    directionMatrix = createMatrix(args, isDirectionMatrix=True)
+    filledScoreMatrix, filledDirectionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+
+    alignments = traceback(filledDirectionMatrix, args)
+
+    expectedAlignments = [('A', 'A')]
+
+    assert alignments == expectedAlignments
+
+def test_traceback_5x5():
+    args = MockArgs(shape=(5, 5), seq1 = "ACTG", seq2 = "ACTC")
+    antidiag = calculateAntidiagonals(args)
+    scoreMatrix = createMatrix(args, isDirectionMatrix=False)
+    directionMatrix = createMatrix(args, isDirectionMatrix=True)
+    filledScoreMatrix, filledDirectionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+
+    alignments = traceback(filledDirectionMatrix, args)
+
+    expectedAlignments = [('ACTG', 'ACTC')]
+
+    assert alignments == expectedAlignments
+
+def test_traceback_2x5():
+    args = MockArgs(shape=(2, 5), seq1 = "ACTA", seq2 = "A")
+    antidiag = calculateAntidiagonals(args)
+    scoreMatrix = createMatrix(args, isDirectionMatrix=False)
+    directionMatrix = createMatrix(args, isDirectionMatrix=True)
+    filledScoreMatrix, filledDirectionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+
+    alignments = traceback(filledDirectionMatrix, args)
+
+    expectedAlignments = [('ACTA', 'A---'), ('ACTA', 'A')]
+
+    assert alignments == expectedAlignments
+
+def test_traceback_5x2():
+    args = MockArgs(shape=(5, 2), seq1 = "C", seq2 = "TCAC")
+    antidiag = calculateAntidiagonals(args)
+    scoreMatrix = createMatrix(args, isDirectionMatrix=False)
+    directionMatrix = createMatrix(args, isDirectionMatrix=True)
+    filledScoreMatrix, filledDirectionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+
+    alignments = traceback(filledDirectionMatrix, args)
+
+    expectedAlignments = [('C--', 'TCAC'), ('C', 'TCAC')]
+
+    assert alignments == expectedAlignments
+
+def test_traceback_3x10():
+    args = MockArgs(shape=(3, 10), seq1 = "CGTAAACGT", seq2 = "TA")
+    antidiag = calculateAntidiagonals(args)
+    scoreMatrix = createMatrix(args, isDirectionMatrix=False)
+    directionMatrix = createMatrix(args, isDirectionMatrix=True)
+    filledScoreMatrix, filledDirectionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+
+    alignments = traceback(filledDirectionMatrix, args)
+
+    expectedAlignments = [('CGTAAACGT', 'TA-----'), ('CGTAAACGT', 'T-A----'), ('CGTAAACGT', 'T--A---')]
+
+    assert alignments == expectedAlignments
+
+
+# printPossibleAlignments
+
 
 
 # printDirectionMatrix
