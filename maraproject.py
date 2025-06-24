@@ -340,6 +340,6 @@ if __name__ == "__main__":
     print("First sequence:", args.seq1)
     print("Second sequence:", args.seq2)
     # print(scoreMatrix)
-    # printDirectionsMatrix(directionMatrix)
+    printDirectionsMatrix(directionMatrix)
     # printPossibleAlignments(possibleAlignments)
-    print(possibleAlignments)
+    

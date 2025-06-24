@@ -370,7 +370,116 @@ def test_traceback_3x10():
 
 
 # printPossibleAlignments
+def test_printPossibleAlignments_0(capsys):
+    alignments = []
 
+    printPossibleAlignments(alignments)
+
+    expectedOutput = ('')
+
+    out, err = capsys.readouterr()
+
+    assert err == ''
+    assert out == expectedOutput
+
+def test_printPossibleAlignments_1(capsys):
+    alignments = [("G-ATTACA", "GCAT-GCU")]
+
+    printPossibleAlignments(alignments)
+
+    expectedOutput = """G-ATTACA
+| || ·|·
+GCAT-GCU
+
+"""
+
+    out, err = capsys.readouterr()
+
+    assert err == ''
+    assert out == expectedOutput
+
+def test_printPossibleAlignments_2(capsys):
+    alignments = [("ACGT", "A-GT"), ("A--T", "AGGT")]
+
+    printPossibleAlignments(alignments)
+    
+    expectedOutput = """ACGT
+| ||
+A-GT
+
+A--T
+|  |
+AGGT
+
+"""
+
+    out, err = capsys.readouterr()
+
+    assert err == ''
+    assert out == expectedOutput
+
+def test_printPossibleAlignments_3(capsys):
+    alignments = [
+    ("G-ATTACA", "GCATG-CA"),
+    ("GA-TTACA", "G-CATGCA"),
+    ("GATT-ACA", "GCA-TGCA"),
+    ]
+
+    printPossibleAlignments(alignments)
+
+    expectedOutput = """G-ATTACA
+| ||· ||
+GCATG-CA
+
+GA-TTACA
+|  ·|·||
+G-CATGCA
+
+GATT-ACA
+|··  ·||
+GCA-TGCA
+
+"""
+
+    out, err = capsys.readouterr()
+    assert err == ''
+    assert out == expectedOutput
 
 
 # printDirectionMatrix
+def test_printDirectionMatrix(capsys):
+    args = MockArgs(shape=(7, 5), seq1 = "ACTG", seq2 = "AAGGTT")
+    antidiag = calculateAntidiagonals(args)
+    scoreMatrix = createMatrix(args, isDirectionMatrix=False)
+    directionMatrix = createMatrix(args, isDirectionMatrix=True)
+    filledScoreMatrix, filledDirectionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+
+    printDirectionsMatrix(filledDirectionMatrix)
+
+    expectedOutput = """┌───┬───┬───┬───┬───┐
+│   │   │   │   │   │
+│   │←  │←  │←  │←  │
+├───┼───┼───┼───┼───┤
+│  ↑│↖  │   │   │   │
+│   │   │←  │←  │←  │
+├───┼───┼───┼───┼───┤
+│  ↑│↖ ↑│↖  │↖  │↖  │
+│   │   │   │←  │←  │
+├───┼───┼───┼───┼───┤
+│  ↑│  ↑│↖ ↑│↖  │↖  │
+│   │   │   │   │   │
+├───┼───┼───┼───┼───┤
+│  ↑│  ↑│↖ ↑│↖ ↑│↖  │
+│   │   │   │   │   │
+├───┼───┼───┼───┼───┤
+│  ↑│  ↑│↖ ↑│↖  │  ↑│
+│   │   │   │   │   │
+├───┼───┼───┼───┼───┤
+│  ↑│  ↑│↖ ↑│↖ ↑│↖ ↑│
+│   │   │   │   │   │
+└───┴───┴───┴───┴───┘
+"""
+
+    out, err = capsys.readouterr()
+    assert err == ''
+    assert out == expectedOutput
