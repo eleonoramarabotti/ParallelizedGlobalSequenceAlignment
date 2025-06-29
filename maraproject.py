@@ -56,7 +56,7 @@ class NucleotideException(Exception):
 
 
 def checkSequence(sequence: str, label: str) -> None:
-    """Check if the inserted sequence contains acceptable nucleotides.
+    """Checks if the inserted sequence contains acceptable nucleotides.
 
     Args:
         sequence (str): the sequence you want to check.
@@ -73,7 +73,7 @@ def checkSequence(sequence: str, label: str) -> None:
             
 
 def createMatrix(args: Params, *, isDirectionMatrix: bool) -> np.ndarray:
-    """Create and initialize a matrix for sequence alignment.
+    """Creates and initialize a matrix for sequence alignment.
 
     Args:
         args (Params): an object containing matrix dimensions and alignment parameters.
@@ -98,7 +98,7 @@ def createMatrix(args: Params, *, isDirectionMatrix: bool) -> np.ndarray:
  
 
 def calculateAntidiagonals(args: Params) -> list:
-    """Compute the list of anti-diagonals for a matrix of a given shape.
+    """Computes the list of anti-diagonals for a matrix of a given shape.
 
     Args:
         args (Params): an object containing matrix dimensions and alignment parameters.
@@ -134,7 +134,7 @@ def calculateAntidiagonals(args: Params) -> list:
 
 
 def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> None:
-    """Compute the score and direction for a single cell in the alignment matrix.
+    """Computes the score and direction for a single cell in the alignment matrix.
 
     Args:
         cell (tuple[int,int]): the (x, y) coordinates of the cell to compute.
@@ -174,7 +174,7 @@ def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np
 
 
 def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> np.ndarray:
-    """Fill the scoring and direction matrices using parallel processing.
+    """Fills the score and direction matrices using parallel processing.
 
     The function updates the given matrices by computing alignment scores cell-by-cell.
 
@@ -204,8 +204,23 @@ def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, direc
     return np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape), np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
 
 
+
+def getScore(args: Params, scoreMatrix: np.ndarray) -> int:
+    """Returns the score of the alignment score.
+
+    Args:
+        args (Params): an object containing matrix dimensions and alignment parameters.
+        scoreMatrix (np.ndarray): the filled score matrix.
+
+    Returns:
+        int: the alignment score.
+    """
+    return scoreMatrix[len(args.seq2) + 1, len(args.seq2) + 1]
+
+
+
 def traceback(directionMatrix: np.ndarray, args: Params) -> list:
-    """Reconstruct all optimal alignments by following the traceback paths.
+    """Reconstructs all optimal alignments by following the traceback paths.
 
     Starting from the bottom-right cell of the direction matrix, this function explores
     all possible paths back to the top-left, building aligned sequences along the way.
@@ -262,7 +277,7 @@ def traceback(directionMatrix: np.ndarray, args: Params) -> list:
 
 
 def printPossibleAlignments(possibleAlignments: list[tuple[str, str]]) -> None:
-    """Print all possible pairwise alignments between two sequences, highlighting matches, 
+    """Prints all possible pairwise alignments between two sequences, highlighting matches, 
     mismatches, and gaps.
 
     Args:
@@ -335,11 +350,14 @@ if __name__ == "__main__":
     directionMatrix = createMatrix(args, isDirectionMatrix = True)
     antidiag = calculateAntidiagonals(args)
     scoreMatrix, directionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+    score = getScore(args, scoreMatrix)
     possibleAlignments = traceback(directionMatrix, args)
+
     
     print("First sequence:", args.seq1)
     print("Second sequence:", args.seq2)
-    # print(scoreMatrix)
+    print(scoreMatrix)
+    print(score)
     printDirectionsMatrix(directionMatrix)
-    # printPossibleAlignments(possibleAlignments)
+    printPossibleAlignments(possibleAlignments)
     
