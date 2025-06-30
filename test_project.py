@@ -302,6 +302,21 @@ def test_fillMatrix_3x10():
     assert np.array_equal(resultDir, expectedDir)
 
 
+# getScore
+def test_getScore_1():
+    args = MockArgs(shape=(7, 4), seq1 = "ACT", seq2 = "TGGACC")
+    antidiag = calculateAntidiagonals(args)
+    scoreMatrix = createMatrix(args, isDirectionMatrix=False)
+    directionMatrix = createMatrix(args, isDirectionMatrix=True)
+    filledScoreMatrix, filledDirectionMatrix = fillMatrix(antidiag, args, scoreMatrix, directionMatrix)
+
+    score = getScore(args, filledScoreMatrix)
+
+    expectedScore = -2 
+
+    assert score == expectedScore
+
+
 # traceback
 def test_traceback_2x2():
     args = MockArgs(shape=(2, 2), seq1 = "A", seq2 = "A")

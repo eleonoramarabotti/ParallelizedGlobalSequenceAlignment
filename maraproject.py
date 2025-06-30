@@ -6,6 +6,7 @@ from ctypes import c_char, c_int
 import numpy as np
 from multiprocessing import Process, Array
 
+# will be used later for direction matrix
 LEFT_DIR = '←'.encode('utf-8')
 UP_DIR   = '↑'.encode('utf-8')
 DIAG_DIR = '↖'.encode('utf-8')
@@ -68,7 +69,7 @@ def checkSequence(sequence: str, label: str) -> None:
     if not sequence:
         raise EmptySequenceException(sequence, label)
     for nucleotide in sequence:
-        if nucleotide.upper() not in "ACTG":
+        if nucleotide.upper() not in "ACTG": # so it's possible to write actg without errors
             raise NucleotideException(nucleotide, sequence, label)
             
 
@@ -143,7 +144,7 @@ def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np
         directionMatrix (np.ndarray): the direction matrix.
     """
     x, y = cell
-    if y == 0 or x == 0:
+    if y == 0 or x == 0: # we have filled them yet
         return
 
     scoreMatrix = np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape)
@@ -152,15 +153,17 @@ def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np
     upScore = scoreMatrix[y-1][x] + args.gapPenalty
     leftScore = scoreMatrix[y][x-1] + args.gapPenalty
     
+    # diagonal move
     if args.seq1[x-1] == args.seq2[y-1]:
         diagScore = scoreMatrix[y-1][x-1] + args.match
     else:
         diagScore = scoreMatrix[y-1][x-1] + args.misMatch
     
-    scoreMatrix[y][x] = max(upScore, leftScore, diagScore)
+    scoreMatrix[y][x] = max(upScore, leftScore, diagScore) # pick the higher
 
     cellDirections = b""
 
+    # you can have multiple directions (same score)
     if scoreMatrix[y][x] == diagScore:
         cellDirections += DIAG_DIR
 
@@ -191,6 +194,7 @@ def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, direc
     directionMatrix = Array(c_char, directionMatrix.tobytes())
     scoreMatrix = Array(c_int, scoreMatrix.flatten())
 
+    # parallelization moment
     for diag in antiDiagonals:
         processes = []
         for cell in diag:
@@ -215,7 +219,7 @@ def getScore(args: Params, scoreMatrix: np.ndarray) -> int:
     Returns:
         int: the alignment score.
     """
-    return scoreMatrix[len(args.seq2) + 1, len(args.seq2) + 1]
+    return scoreMatrix[args.shape[0] - 1, args.shape[1] - 1] 
 
 
 
@@ -297,7 +301,7 @@ def printPossibleAlignments(possibleAlignments: list[tuple[str, str]]) -> None:
         print(seq1, matchLine, seq2, sep='\n', end='\n'*2)
 
 
-# TODO: commento su dove ho preso queste cose (dalla repository del maic)
+# these 'signs' are taken from the GitHub repository for which I'm a contributor (https://github.com/M1keCodingProjects/PyChess)
 TOP    = "┌┬┐"
 MIDDLE = "├┼┤"
 BOTTOM = "└┴┘"
@@ -357,7 +361,7 @@ if __name__ == "__main__":
     print("First sequence:", args.seq1)
     print("Second sequence:", args.seq2)
     print(scoreMatrix)
-    print(score)
     printDirectionsMatrix(directionMatrix)
     printPossibleAlignments(possibleAlignments)
+    print("Alignment score:", score)
     
