@@ -353,7 +353,7 @@ def test_traceback_2x5():
 
     alignments = traceback(filledDirectionMatrix, args)
 
-    expectedAlignments = [('ACTA', 'A---'), ('ACTA', 'A')]
+    expectedAlignments = [('ACTA', 'A---'), ('ACTA', '---A')]
 
     assert alignments == expectedAlignments
 
@@ -366,7 +366,7 @@ def test_traceback_5x2():
 
     alignments = traceback(filledDirectionMatrix, args)
 
-    expectedAlignments = [('C--', 'TCAC'), ('C', 'TCAC')]
+    expectedAlignments = [('-C--', 'TCAC'), ('---C', 'TCAC')]
 
     assert alignments == expectedAlignments
 
@@ -379,7 +379,7 @@ def test_traceback_3x10():
 
     alignments = traceback(filledDirectionMatrix, args)
 
-    expectedAlignments = [('CGTAAACGT', 'TA-----'), ('CGTAAACGT', 'T-A----'), ('CGTAAACGT', 'T--A---')]
+    expectedAlignments = [('CGTAAACGT', '--TA-----'), ('CGTAAACGT', '--T-A----'), ('CGTAAACGT', '--T--A---')]
 
     assert alignments == expectedAlignments
 

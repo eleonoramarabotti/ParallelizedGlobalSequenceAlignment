@@ -247,8 +247,8 @@ def traceback(directionMatrix: np.ndarray, args: Params) -> list:
         y, x, wipSequence1, wipSequence2 = stack.pop() # removes the last element
 
         if y == 0 or x == 0: # when you touch one of the two edges (top or left) you add all the remaining sequence (last thing you do, only if the path does not end in 0,0)
-            finalSequence1 = args.seq1[:x] + wipSequence1 
-            finalSequence2 = args.seq2[:y] + wipSequence2
+            finalSequence1 = '-' * y + args.seq1[:x] + wipSequence1 
+            finalSequence2 = '-' * x + args.seq2[:y] + wipSequence2
             possibleAlignments.append((finalSequence1, finalSequence2))
             continue
         
