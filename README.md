@@ -35,7 +35,7 @@ The implementation accelerates the most computationally intensive part of the al
 
 
 ## Example Command
-    python alignment.py --seq1 ACTGAC --seq2 ACCTGA -gp -2 -m 3 -mm -1
+    python alignment.py --seq1 ACTGAC --seq2 ACCTGA -gp -1 -m 1 -mm -1
 
 
 ## Expected Output
