@@ -1,5 +1,5 @@
 import pytest
-from maraproject import *
+from globalSequenceAlignmentP import *
 
 class MockArgs:
     def __init__(self, shape=(0,0), seq1='', seq2='', gapPenalty=-1, match=1, misMatch=-1):
