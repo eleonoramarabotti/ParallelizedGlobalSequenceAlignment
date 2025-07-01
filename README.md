@@ -31,7 +31,7 @@ The implementation accelerates the most computationally intensive part of the al
 ### Traceback
 - Finds all optimal alignment paths.
 - Stack-based path reconstruction.
-- Handles multiple optimal paths simultaneously.
+- Handles multiple optimal paths.
 
 
 ## Example Command
