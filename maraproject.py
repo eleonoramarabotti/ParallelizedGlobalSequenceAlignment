@@ -114,7 +114,7 @@ def calculateAntidiagonals(args: Params) -> list:
         x = index
         y = 0
         for _ in range(min(rows, index + 1)): 
-            startAtTopDiagonals.append((x, y)) # here because i want to append the first cell too
+            startAtTopDiagonals.append((x, y)) # here because I want to append the first cell too
             x -= 1
             y += 1
         
@@ -194,15 +194,17 @@ def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, direc
     directionMatrix = Array(c_char, directionMatrix.tobytes())
     scoreMatrix = Array(c_int, scoreMatrix.flatten())
 
-    # parallelization moment
+    # multiprocessing
     for diag in antiDiagonals:
         processes = []
+        # For each cell in the current anti-diagonal, create a separate process
         for cell in diag:
             p = Process(target=calculateSingleCellScore, args=(cell, args, scoreMatrix, directionMatrix))
             p.daemon = True
             p.start()
             processes.append(p)
        
+        # Wait for all processes in the current anti-diagonal to finish before moving on
         list(map(lambda p: p.join(), processes))
 
     return np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape), np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
@@ -210,7 +212,7 @@ def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, direc
 
 
 def getScore(args: Params, scoreMatrix: np.ndarray) -> int:
-    """Returns the score of the alignment score.
+    """Returns the alignment score.
 
     Args:
         args (Params): an object containing matrix dimensions and alignment parameters.
@@ -313,13 +315,20 @@ def printDirectionsMatrix(directionMatrix: np.ndarray) -> None:
     Args:
         directionMatrix (np.ndarray): the filled direction matrix.
     """
+    # Create the top border of the table using predefined characters and matrix width
     topSeparator = TOP[0] + (WALL * 3 + TOP[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + TOP[-1]
+    # Create the middle separator line used between rows
     middleSeparator = MIDDLE[0] + (WALL * 3 + MIDDLE[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + MIDDLE[-1]
+    # Create the bottom border of the table
     bottomSeparator = BOTTOM[0] + (WALL * 3 + BOTTOM[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + BOTTOM[-1]
     print(topSeparator)
+    
+    # Loop over twice the number of rows because each cell is printed in two lines (for different directions)
     for y in range(0, 2 * directionMatrix.shape[0]):
         isFirstLine = y % 2 == 0
         rowBuff     = "│"
+        
+        # Loop over each column in the matrix
         for x in range(directionMatrix.shape[1]):
             if isFirstLine:
                 rowBuff += DIAG_DIR.decode() + ' '  if DIAG_DIR in directionMatrix[y // 2, x] else '  '
