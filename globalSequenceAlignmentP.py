@@ -303,7 +303,7 @@ def printPossibleAlignments(possibleAlignments: list[tuple[str, str]]) -> None:
         print(seq1, matchLine, seq2, sep='\n', end='\n'*2)
 
 
-# these 'signs' are taken from the GitHub repository for which I'm a contributor (https://github.com/M1keCodingProjects/PyChess)
+# These ASCII table characters are taken from an open-source repository that I also contribute to (https://github.com/M1keCodingProjects/PyChess)
 TOP    = "┌┬┐"
 MIDDLE = "├┼┤"
 BOTTOM = "└┴┘"
