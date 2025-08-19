@@ -24,16 +24,27 @@ Attributes:
     shape (tuple[int, int]): the dimensions of the matrices.
 """
 
+class EmptyLabelException(Exception):
+    """Custom exception raised when the inserted label is empty."""
+    def __init__(self, sequence: str):
+        """Initialize the EmptyLabelException with a detailed error message.
+
+        Args:
+            sequence (str): the sequence containing the invalid character.
+        """
+        message = f"Insertion error in {sequence}: the label can't be empty"
+        super().__init__(message)
+
+
 class EmptySequenceException(Exception):
     """Custom exception raised when the inserted sequence is empty."""
-    def __init__(self, sequence: str, label: str):
+    def __init__(self, label: str):
         """Initialize the EmptySequenceException with a detailed error message.
 
         Args:
-            sequence (str): the empty sequence.
             label (str): a label to identify the sequence.
         """
-        message = f"Insertion error in the {label} ('{sequence}'): the sequence cannot be empty"
+        message = f"Insertion error in the {label}: the sequence cannot be empty"
         super().__init__(message)
 
 
@@ -56,7 +67,7 @@ class NucleotideException(Exception):
         super().__init__(message)
 
 
-def checkSequence(sequence: str, label: str) -> None:
+def checkSequence(sequence: str, label: str) -> str:
     """Checks if the inserted sequence contains acceptable nucleotides.
 
     Args:
@@ -66,12 +77,18 @@ def checkSequence(sequence: str, label: str) -> None:
     Raises:
         NucleotideException: insertion error if a sequence contains invalid characters.
     """
-    if not sequence:
-        raise EmptySequenceException(sequence, label)
+    if not label: raise EmptyLabelException(sequence)
+    
+    sequence = sequence.strip().upper()
+    
+    if not sequence: raise EmptySequenceException(label)
+
     for nucleotide in sequence:
-        if nucleotide.upper() not in "ACTG": # so it's possible to write actg without errors
+        if nucleotide not in "ACTG": # so it's possible to write actg without errors
             raise NucleotideException(nucleotide, sequence, label)
-            
+
+    return sequence          
+
 
 def createMatrix(args: Params, *, isDirectionMatrix: bool) -> np.ndarray:
     """Creates and initialize a matrix for sequence alignment.
@@ -108,7 +125,7 @@ def calculateAntidiagonals(args: Params) -> list:
         list: a list of anti-diagonals, where each anti-diagonal is a list of (x, y) tuples.
     """
     rows, columns = args.shape 
-    antiDiagonals = [] # # each singleDiagList is inserted in this list with the last 'append'
+    antiDiagonals = [] # each singleDiagList is inserted in this list with the last 'append'
     for index in range(columns):
         startAtTopDiagonals = [] # each diagonal is inserted in this list with the first 'append'
         x = index
@@ -144,8 +161,6 @@ def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np
         directionMatrix (np.ndarray): the direction matrix.
     """
     x, y = cell
-    if y == 0 or x == 0: # we have filled them yet
-        return
 
     scoreMatrix = np.frombuffer(scoreMatrix.get_obj(), dtype=np.int32).reshape(args.shape)
     directionMatrix = np.frombuffer(directionMatrix.get_obj(), dtype='S9').reshape(args.shape)
@@ -159,7 +174,7 @@ def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np
     else:
         diagScore = scoreMatrix[y-1][x-1] + args.misMatch
     
-    scoreMatrix[y][x] = max(upScore, leftScore, diagScore) # pick the higher
+    scoreMatrix[y][x] = max(upScore, leftScore, diagScore) # pick the highest
 
     cellDirections = b""
 
@@ -176,7 +191,7 @@ def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np
     directionMatrix[y][x] = cellDirections
 
 
-def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> np.ndarray:
+def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Fills the score and direction matrices using parallel processing.
 
     The function updates the given matrices by computing alignment scores cell-by-cell.
@@ -189,7 +204,7 @@ def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, direc
         directionMatrix (np.ndarray): the direction matrix you want to fill.
 
     Returns:
-        np.ndarray: the updated scoreMatrix and directionMatrix.
+        tuple[np.ndarray, np.ndarray]: a tuple containing the updated scoreMatrix and directionMatrix.
     """
     directionMatrix = Array(c_char, directionMatrix.tobytes())
     scoreMatrix = Array(c_int, scoreMatrix.flatten())
@@ -199,6 +214,9 @@ def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, direc
         processes = []
         # For each cell in the current anti-diagonal, create a separate process
         for cell in diag:
+            x, y = cell
+            if y == 0 or x == 0:  # optimization -> putting the check here avoids creating useless processes
+                continue
             p = Process(target=calculateSingleCellScore, args=(cell, args, scoreMatrix, directionMatrix))
             p.daemon = True
             p.start()
@@ -287,7 +305,7 @@ def printPossibleAlignments(possibleAlignments: list[tuple[str, str]]) -> None:
     mismatches, and gaps.
 
     Args:
-        possibleAlignments (list[tuple[str, str]]): a list of tuples, each containing two equal-length strings `seq1` and `seq2`
+        possibleAlignments (list[tuple[str, str]]): a list of tuples, each containing two equal-length strings 'seq1' and 'seq2'
                                                     (with '-' characters representing gaps).
     """
     for seq1, seq2 in possibleAlignments:
@@ -309,18 +327,34 @@ MIDDLE = "├┼┤"
 BOTTOM = "└┴┘"
 WALL   = '─'
 
-def printDirectionsMatrix(directionMatrix: np.ndarray) -> None:
+def generateLine(corners: str, cellsAmount: int) -> str:
+    """Constructs a line using corner characters and wall segments. 
+
+    Args:
+        corners (str): A string containing:
+                            corners[0] - Left corner character
+                            corners[1] - Between-cells character
+                            corners[-1] - Right corner character
+        cellsAmount (int): Number of cells in the row
+
+    Returns:
+        str: The constructed line
+    """
+    return corners[0] + (WALL * 3 + corners[1]) * (cellsAmount - 1) + WALL * 3 + corners[-1]
+
+
+def printDirectionMatrix(directionMatrix: np.ndarray) -> None:
     """Formats and prints the direction matrix.
 
     Args:
         directionMatrix (np.ndarray): the filled direction matrix.
     """
-    # Create the top border of the table using predefined characters and matrix width
-    topSeparator = TOP[0] + (WALL * 3 + TOP[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + TOP[-1]
-    # Create the middle separator line used between rows
-    middleSeparator = MIDDLE[0] + (WALL * 3 + MIDDLE[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + MIDDLE[-1]
-    # Create the bottom border of the table
-    bottomSeparator = BOTTOM[0] + (WALL * 3 + BOTTOM[1]) * (directionMatrix.shape[1] - 1) + WALL * 3 + BOTTOM[-1]
+    cellsAmount = directionMatrix.shape[1]
+    
+    topSeparator    = generateLine(TOP,    cellsAmount)
+    middleSeparator = generateLine(MIDDLE, cellsAmount)
+    bottomSeparator = generateLine(BOTTOM, cellsAmount)
+
     print(topSeparator)
     
     # Loop over twice the number of rows because each cell is printed in two lines (for different directions)
@@ -342,23 +376,24 @@ def printDirectionsMatrix(directionMatrix: np.ndarray) -> None:
     print(bottomSeparator)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="Scientific Programming Project", description = "Takes two sequences as input for the allignement")
-    parser.add_argument("--seq1", type=str, help="Write here your first sequence")
-    parser.add_argument("--seq2", type=str, help="Write here your second sequence")
-    parser.add_argument("-gp", "--gapPenalty", type=int, help="Write the negative gap penalty you want to apply")
-    parser.add_argument("-m", "--match", type=int, help="Write the match score you want to apply")
-    parser.add_argument("-mm", "--misMatch", type=int, help="Write the mismatch score you want to apply")
+def main():
+    """Executes the main script"""
+
+    parser = argparse.ArgumentParser(prog="Scientific Programming Project", description = "Takes two sequences as input for the alignment")
+    parser.add_argument("seq1",       type=str, help="Write here your first sequence (positional)")
+    parser.add_argument("seq2",       type=str, help="Write here your second sequence (positional)")
+    parser.add_argument("gapPenalty", type=int, help="Write the negative gap penalty you want to apply (positional)")
+    parser.add_argument("match",      type=int, help="Write the match score you want to apply (positional)")
+    parser.add_argument("misMatch",   type=int, help="Write the mismatch score you want to apply (positional)")
 
     args = parser.parse_args()
-    args.shape = (len(args.seq2) + 1, len(args.seq1) + 1)
     args: Params
 
-    args.seq1 = args.seq1.strip()
-    args.seq2 = args.seq2.strip()
+    args.seq1 = checkSequence(args.seq1, label = "first sequence")
+    args.seq2 = checkSequence(args.seq2, label = "second sequence")
 
-    checkSequence(args.seq1, label = "first sequence")
-    checkSequence(args.seq2, label = "second sequence")
+    args.shape = (len(args.seq2) + 1, len(args.seq1) + 1)
+
     scoreMatrix = createMatrix(args, isDirectionMatrix = False)
     directionMatrix = createMatrix(args, isDirectionMatrix = True)
     antidiag = calculateAntidiagonals(args)
@@ -366,11 +401,14 @@ if __name__ == "__main__":
     score = getScore(args, scoreMatrix)
     possibleAlignments = traceback(directionMatrix, args)
 
-    
     print("First sequence:", args.seq1)
-    print("Second sequence:", args.seq2)
+    print("Second sequence:",args.seq2)
     print(scoreMatrix)
-    printDirectionsMatrix(directionMatrix)
+    printDirectionMatrix(directionMatrix)
     printPossibleAlignments(possibleAlignments)
     print("Alignment score:", score)
-    
+
+
+
+if __name__ == "__main__":
+    main()
