@@ -1,6 +1,6 @@
 import pytest
 import sys
-from globalAlignment import *
+from globalAlignmentSeq import *
 
 class MockArgs:
     def __init__(self, shape=(0,0), seq1='', seq2='', gapPenalty=-1, match=1, misMatch=-1):
