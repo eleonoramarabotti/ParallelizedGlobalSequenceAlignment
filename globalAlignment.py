@@ -30,7 +30,7 @@ class EmptyLabelException(Exception):
         """Initialize the EmptyLabelException with a detailed error message.
 
         Args:
-            sequence (str): the sequence containing the invalid character.
+            sequence (str): the sequence with the empty label.
         """
         message = f"Insertion error in {sequence}: the label can't be empty"
         super().__init__(message)
@@ -79,12 +79,12 @@ def checkSequence(sequence: str, label: str) -> str:
     """
     if not label: raise EmptyLabelException(sequence)
     
-    sequence = sequence.strip().upper()
+    sequence = sequence.strip().upper() # so it's possible to write actg without errors
     
     if not sequence: raise EmptySequenceException(label)
 
     for nucleotide in sequence:
-        if nucleotide not in "ACTG": # so it's possible to write actg without errors
+        if nucleotide not in "ACTG": 
             raise NucleotideException(nucleotide, sequence, label)
 
     return sequence          
@@ -194,11 +194,11 @@ def calculateSingleCellScore(cell: tuple[int,int], args: Params, scoreMatrix: np
 def fillMatrix(antiDiagonals: list, args: Params, scoreMatrix: np.ndarray, directionMatrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Fills the score and direction matrices using parallel processing.
 
-    The function updates the given matrices by computing alignment scores cell-by-cell.
+    The function returns the filled matrices after computing alignment scores cell-by-cell.
 
     Args:
         antiDiagonals (list): a list of anti-diagonals, where each anti-diagonal is a list 
-                                of (row, column) positions to process.
+                                of (column, row) positions to process.
         args (Params): an object containing matrix dimensions and alignment parameters.
         scoreMatrix (np.ndarray): the scoring matrix you want to fill.
         directionMatrix (np.ndarray): the direction matrix you want to fill.
@@ -243,7 +243,7 @@ def getScore(args: Params, scoreMatrix: np.ndarray) -> int:
 
 
 
-def traceback(directionMatrix: np.ndarray, args: Params) -> list:
+def traceback(directionMatrix: np.ndarray, args: Params) -> list[tuple[str, str]]:
     """Reconstructs all optimal alignments by following the traceback paths.
 
     Starting from the bottom-right cell of the direction matrix, this function explores
@@ -321,7 +321,7 @@ def printPossibleAlignments(possibleAlignments: list[tuple[str, str]]) -> None:
         print(seq1, matchLine, seq2, sep='\n', end='\n'*2)
 
 
-# These ASCII table characters are taken from an open-source repository that I also contribute to (https://github.com/M1keCodingProjects/PyChess)
+# The configuration for these Unicode characters is taken from an open-source repository that I also contribute to (https://github.com/M1keCodingProjects/PyChess)
 TOP    = "┌┬┐"
 MIDDLE = "├┼┤"
 BOTTOM = "└┴┘"
@@ -380,11 +380,11 @@ def main():
     """Executes the main script"""
 
     parser = argparse.ArgumentParser(prog="Scientific Programming Project", description = "Takes two sequences as input for the alignment")
-    parser.add_argument("seq1",       type=str, help="Write here your first sequence (positional)")
-    parser.add_argument("seq2",       type=str, help="Write here your second sequence (positional)")
-    parser.add_argument("gapPenalty", type=int, help="Write the negative gap penalty you want to apply (positional)")
-    parser.add_argument("match",      type=int, help="Write the match score you want to apply (positional)")
-    parser.add_argument("misMatch",   type=int, help="Write the mismatch score you want to apply (positional)")
+    parser.add_argument("seq1",                type=str, help="Write here your first sequence (positional)")
+    parser.add_argument("seq2",                type=str, help="Write here your second sequence (positional)")
+    parser.add_argument("-gp", "--gapPenalty", type=int, help="Write the negative gap penalty you want to apply")
+    parser.add_argument("-m", "--match",       type=int, help="Write the match score you want to apply")
+    parser.add_argument("-mm", "--misMatch",   type=int, help="Write the mismatch score you want to apply")
 
     args = parser.parse_args()
     args: Params

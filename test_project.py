@@ -536,7 +536,7 @@ def test_printDirectionMatrix(capsys):
 
 # main
 def test_main1(capsys):
-    sys.argv = ["globalAlignment.py", "ACTTGGA", "AG", "-1", "1", "-1"]
+    sys.argv = ["globalAlignment.py", "ACTTGGA", "AG", "-gp", "-1", "-m", "1", "-mm", "-1"]
     main()
 
     out, err = capsys.readouterr()
@@ -572,7 +572,7 @@ A----G-
 
 
 def test_main2(capsys):
-    sys.argv = ["globalAlignment.py", "ACA", "AGAAG        ", "-1", "1", "-1"]
+    sys.argv = ["globalAlignment.py", "ACA", "AGAAG        ", "-gp", "-1", "-m", "1", "-mm", "-1"]
     main()
 
     out, err = capsys.readouterr()
@@ -624,7 +624,7 @@ AGAAG
 
 
 def test_main3(capsys):
-    sys.argv = ["globalAlignment.py", "AA", "AACAGAAGTCAA", "-1", "1", "-1"]
+    sys.argv = ["globalAlignment.py", "AA", "AACAGAAGTCAA", "-gp", "-1", "-m", "1", "-mm", "-1"]
     main()
 
     out, err = capsys.readouterr()
@@ -774,7 +774,7 @@ Alignment score: -8
 
 
 def test_main4():
-    sys.argv = ["globalAlignment.py", "ACCFTA", "AACAGAAGTCAA", "-1", "1", "-1"]
+    sys.argv = ["globalAlignment.py", "ACCFTA", "AACAGAAGTCAA", "-gp", "-1", "-m", "1", "-mm", "-1"]
 
     with pytest.raises(NucleotideException) as exc_info:
         main()
@@ -782,7 +782,7 @@ def test_main4():
     assert str(exc_info.value) == f"Insertion error in the first sequence ('ACCFTA'): invalid nucleotide 'F'. Sequences must contain only A, C, T, or G."
 
 def test_main5():
-    sys.argv = ["globalAlignment.py", "", "ACTG", "-1", "1", "-1"]
+    sys.argv = ["globalAlignment.py", "", "ACTG", "-gp", "-1", "-m", "1", "-mm", "-1"]
 
     with pytest.raises(EmptySequenceException) as exc_info:
         main()

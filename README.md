@@ -29,7 +29,7 @@ The use of parallel programming reduced the runtime by accelerating the most com
 
 ## Example Command
 ```shell
-python3 globalAlignment.py ACTGAC ACCTGA -1 1 -1
+python3 globalAlignment.py ACTGAC ACCTGA -gp -1 -m 1 -mm -1
 ```
 
 
@@ -44,7 +44,7 @@ while the directions are represented by Unicode arrows (←, ↑, ↖).
 
 ## Requirements
 ### Mandatory
-- Python 3.x
+- Python 3.13.5 or newer
 - Numpy
 
 ### Pre-installed
